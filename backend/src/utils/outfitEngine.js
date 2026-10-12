@@ -1,23 +1,18 @@
 /**
  * FitCheck Outfit Scoring & Construction Engine
  *
- * This is a deterministic, explainable algorithm — NOT an AI agent.
- * It scores candidate items (owned items + catalog products) for each
- * required garment slot, and picks the best-scoring combination.
- *
- * Why not an AI agent? Because this is a bounded, well-structured
- * combinatorial problem. A scoring algorithm is faster, free, and
- * fully explainable (you can always see exactly why an item was chosen).
+ * A deterministic, explainable algorithm (not an AI agent). For every garment
+ * slot it scores owned items and catalogue products, then picks the best one.
  */
 
-// Simple color-theory rules: which color tags suit which undertone
+// Which colour tags suit which undertone (colour-theory rules).
 const UNDERTONE_COLOR_MAP = {
-  warm: ['warm', 'earthy', 'mustard', 'olive', 'rust', 'terracotta', 'gold', 'coral'],
-  cool: ['cool', 'blue', 'jewel', 'emerald', 'sapphire', 'lavender', 'berry', 'silver'],
-  neutral: ['neutral', 'navy', 'grey', 'white', 'black', 'beige'],
+  warm: ['warm', 'earthy', 'mustard', 'olive', 'rust', 'terracotta', 'gold', 'coral', 'orange', 'yellow', 'brown', 'camel', 'tan', 'maroon', 'peach', 'red', 'cream'],
+  cool: ['cool', 'blue', 'jewel', 'emerald', 'sapphire', 'lavender', 'berry', 'silver', 'teal', 'purple', 'plum', 'pink', 'sky blue'],
+  neutral: ['neutral', 'navy', 'grey', 'charcoal', 'white', 'black', 'beige', 'taupe', 'dusty rose'],
 };
 
-// Which silhouette tags suit which body shape
+// Which silhouette tags suit which body shape.
 const BODYSHAPE_SILHOUETTE_MAP = {
   hourglass: ['fitted', 'wrap', 'belted', 'hourglass'],
   pear: ['aline', 'structured-shoulder', 'boatneck', 'pear'],
@@ -27,33 +22,20 @@ const BODYSHAPE_SILHOUETTE_MAP = {
 };
 
 function scoreColorMatch(itemColorTags = [], undertone) {
-  const goodColors = UNDERTONE_COLOR_MAP[undertone] || [];
-  const matches = itemColorTags.filter((c) => goodColors.includes(c));
-  return matches.length > 0 ? 3 : 0;
+  const good = UNDERTONE_COLOR_MAP[undertone] || [];
+  return itemColorTags.some((c) => c && good.includes(String(c).toLowerCase())) ? 3 : 0;
 }
 
 function scoreSilhouetteMatch(itemSilhouetteTags = [], bodyShape) {
-  const goodSilhouettes = BODYSHAPE_SILHOUETTE_MAP[bodyShape] || [];
-  const matches = itemSilhouetteTags.filter((s) => goodSilhouettes.includes(s));
-  return matches.length > 0 ? 3 : 0;
+  const good = BODYSHAPE_SILHOUETTE_MAP[bodyShape] || [];
+  return itemSilhouetteTags.some((s) => good.includes(s)) ? 3 : 0;
 }
 
 function scoreBudgetFit(price, remainingBudget) {
-  if (remainingBudget == null) return 1; // no budget set, neutral score
-  if (price <= remainingBudget) return 2;
-  return -5; // heavily penalize going over budget
+  if (remainingBudget == null) return 1;
+  return price <= remainingBudget ? 2 : -5;
 }
 
-/**
- * Builds the best outfit for a given profile, occasion, and set of
- * available owned items + catalog products.
- *
- * @param {Object} profile - { undertone, depth, bodyShape }
- * @param {Array} ownedItems - user's closet items
- * @param {Array} products - catalog products (already filtered by category)
- * @param {Array} requiredSlots - e.g. ['top', 'bottom', 'footwear']
- * @param {Number} budget - optional total budget
- */
 function buildOutfit(profile, ownedItems, products, requiredSlots, budget = null) {
   const { undertone, bodyShape } = profile;
   const selected = [];
@@ -68,10 +50,7 @@ function buildOutfit(profile, ownedItems, products, requiredSlots, budget = null
         refId: item._id,
         garmentType: slot,
         price: 0,
-        score:
-          scoreColorMatch([item.color], undertone) +
-          scoreSilhouetteMatch([item.styleTag], bodyShape) +
-          5, // bonus for already owning it — no new purchase needed
+        score: scoreColorMatch([item.color], undertone) + scoreSilhouetteMatch([item.styleTag], bodyShape) + 5,
       }));
 
     const productCandidates = products
@@ -81,20 +60,14 @@ function buildOutfit(profile, ownedItems, products, requiredSlots, budget = null
         refId: p._id,
         garmentType: slot,
         price: p.price,
-        score:
-          scoreColorMatch(p.colorTags, undertone) +
-          scoreSilhouetteMatch(p.silhouetteTags, bodyShape) +
-          scoreBudgetFit(p.price, remainingBudget),
+        score: scoreColorMatch(p.colorTags, undertone) + scoreSilhouetteMatch(p.silhouetteTags, bodyShape) + scoreBudgetFit(p.price, remainingBudget),
       }));
 
-    const allCandidates = [...ownedCandidates, ...productCandidates];
+    const all = [...ownedCandidates, ...productCandidates];
+    if (all.length === 0) continue;
 
-    if (allCandidates.length === 0) continue; // no candidate available for this slot, skip it
-
-    // Pick the highest-scoring candidate for this slot
-    allCandidates.sort((a, b) => b.score - a.score);
-    const chosen = allCandidates[0];
-
+    all.sort((a, b) => b.score - a.score);
+    const chosen = all[0];
     selected.push(chosen);
     totalPrice += chosen.price;
     if (remainingBudget != null) remainingBudget -= chosen.price;
