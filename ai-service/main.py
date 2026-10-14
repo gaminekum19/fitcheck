@@ -1,3 +1,5 @@
+import base64
+
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 import requests
@@ -7,6 +9,7 @@ import cv2
 from skin_tone import analyze_skin_tone
 from body_shape import analyze_body_shape
 from color_name import name_dominant_color
+from tryon import run_tryon, TryOnError
 
 app = FastAPI(title="FitCheck AI Service")
 
@@ -18,6 +21,12 @@ class AnalyzeRequest(BaseModel):
 
 class ColorRequest(BaseModel):
     imageUrl: str
+
+
+class TryOnRequest(BaseModel):
+    personUrl: str
+    garmentUrl: str
+    description: str = "garment"
 
 
 def _download_image(url: str):
@@ -68,3 +77,13 @@ def dominant_color(req: ColorRequest):
         raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Colour detection failed: {str(e)}")
+
+
+@app.post("/tryon")
+def tryon(req: TryOnRequest):
+    """Generates a preview of the person wearing the garment (virtual try-on)."""
+    try:
+        data, mime = run_tryon(req.personUrl, req.garmentUrl, req.description)
+        return {"imageBase64": base64.b64encode(data).decode("ascii"), "mime": mime}
+    except TryOnError as e:
+        raise HTTPException(status_code=e.status, detail=str(e))

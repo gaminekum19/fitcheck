@@ -133,6 +133,11 @@ input[type=file]{width:100%;color:var(--muted);font:400 14px var(--sans);padding
 .compare a:hover{color:var(--text)}
 .compare .save{margin-top:6px;color:var(--accent)}
 
+dialog{border:1px solid var(--line);border-radius:12px;background:var(--surface);color:var(--text);padding:24px;width:min(520px,92vw);box-shadow:var(--shadow)}
+dialog::backdrop{background:rgba(0,0,0,.65)}
+.dlg-head{display:flex;justify-content:space-between;align-items:center;gap:12px}
+.tryon-img{width:100%;border-radius:8px;border:1px solid var(--line);display:block}
+
 footer{position:relative;z-index:1;padding:26px clamp(20px,5vw,56px);border-top:1px solid var(--line);font-size:12px;color:var(--muted);font-family:var(--mono);letter-spacing:.04em}
 
 @media (max-width:820px){
@@ -292,6 +297,11 @@ footer{position:relative;z-index:1;padding:26px clamp(20px,5vw,56px);border-top:
     </div>
   </section>
 </main>
+
+<dialog id="tryon-dialog" aria-labelledby="tryon-title">
+  <div class="dlg-head"><h3 id="tryon-title">Try on</h3><button class="link" id="tryon-close" aria-label="Close preview">Close</button></div>
+  <div id="tryon-body" style="margin-top:14px"></div>
+</dialog>
 
 <footer>
   FitCheck · Style suggestions only · Some links are affiliate links and may earn us a commission.
@@ -528,6 +538,29 @@ function imgBox(url, alt){
   } else box.append('no photo');
   return box;
 }
+/* ---------- virtual try-on ---------- */
+const TRYON_TYPES = ['top', 'dress'];
+function tryOnButton(imageUrl, name, garmentType){
+  if (!imageUrl || !/^https:\/\//.test(imageUrl) || TRYON_TYPES.indexOf(garmentType) === -1) return null;
+  return h('button', { class: 'btn ghost small', style: 'display:block', onclick: () => openTryOn(imageUrl, name) }, 'Try it on');
+}
+function openTryOn(imageUrl, name){
+  $('tryon-title').textContent = 'Try on: ' + name;
+  $('tryon-body').replaceChildren(
+    h('p', { class: 'note', style: 'margin-top:0' }, 'To make this preview, your full-body photo and this garment image are sent to a third-party AI service (Hugging Face). The result is AI-generated and approximate.'),
+    h('button', { class: 'btn small', onclick: () => runTryOn(imageUrl, name) }, 'I agree, generate preview'));
+  $('tryon-dialog').showModal();
+}
+async function runTryOn(imageUrl, name){
+  const body = $('tryon-body');
+  body.replaceChildren(h('p', { class: 'note', style: 'margin-top:0' }, 'Generating your preview. On the free service this can take up to two minutes.'), h('div', { class: 'tape' }));
+  try {
+    const d = await api('/tryon', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ garmentUrl: imageUrl, description: name }) });
+    body.replaceChildren(h('img', { class: 'tryon-img', src: d.imageUrl, alt: 'AI-generated try-on preview' }), h('p', { class: 'note' }, 'AI-generated preview. Fit and colours are approximate.'));
+  } catch (e) { body.replaceChildren(h('div', { class: 'msg err' }, e.message)); }
+}
+$('tryon-close').addEventListener('click', () => $('tryon-dialog').close());
+
 function compareBlock(it){
   const d = it.details || {};
   const alts = it.alternatives || [];
@@ -551,7 +584,8 @@ function renderResult(o){
       h('div', { class: 'pname' }, owned ? 'From your closet: ' + (d.color ? d.color + ' ' : '') + (d.garmentType || '') : d.name),
       owned ? h('span', { class: 'tag own' }, 'already yours') : [h('div', { class: 'price' }, '₹' + d.price), h('span', { class: 'tag' }, d.platform)],
       owned ? null : compareBlock(it),
-      owned ? null : h('a', { class: 'btn ghost small', href: API + '/click/' + d._id, target: '_blank', rel: 'noopener sponsored' }, 'Shop now')
+      owned ? null : h('a', { class: 'btn ghost small', href: API + '/click/' + d._id, target: '_blank', rel: 'noopener sponsored' }, 'Shop now'),
+      tryOnButton(d.imageUrl, owned ? 'your ' + (d.color ? d.color + ' ' : '') + (d.garmentType || 'piece') : d.name, it.garmentType)
     );
     grid.append(h('article', { class: 'pcard' }, imgBox(d.imageUrl, d.name), body));
   });
@@ -574,6 +608,7 @@ function renderCloset(items){
       h('div', { class: 'pbody' },
         h('div', { class: 'pname' }, (it.color ? it.color + ' ' : '') + it.garmentType),
         it.styleTag ? h('span', { class: 'tag' }, it.styleTag) : null,
+        tryOnButton(it.imageUrl, 'your ' + (it.color ? it.color + ' ' : '') + it.garmentType, it.garmentType),
         h('button', { class: 'btn ghost small', style: 'display:block', onclick: async () => {
           try { await api('/closet/' + it._id, { method: 'DELETE' }); openCloset(); } catch (e) { say($('closet-msg'), e.message, 'err'); }
         } }, 'Remove'))));

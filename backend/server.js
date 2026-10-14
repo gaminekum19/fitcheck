@@ -9,6 +9,7 @@ const closetRoutes = require('./src/routes/closetRoutes');
 const productRoutes = require('./src/routes/productRoutes');
 const recommendationRoutes = require('./src/routes/recommendationRoutes');
 const clickRoutes = require('./src/routes/clickRoutes');
+const tryonRoutes = require('./src/routes/tryonRoutes');
 
 const app = express();
 
@@ -27,8 +28,8 @@ app.use('/api/closet', closetRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/recommendations', recommendationRoutes);
 app.use('/api/click', clickRoutes);
+app.use('/api/tryon', tryonRoutes);
 
-// Basic error handler for anything that slips through
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ message: 'Unexpected server error.', error: err.message });
