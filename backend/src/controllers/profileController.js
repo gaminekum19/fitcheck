@@ -1,6 +1,7 @@
 const cloudinary = require('../config/cloudinary');
 const Profile = require('../models/Profile');
 const axios = require('axios');
+const { aiHeaders } = require('../config/aiHeaders');
 
 // Helper: upload a file buffer to Cloudinary and return the URL
 function uploadToCloudinary(fileBuffer, folder) {
@@ -34,10 +35,7 @@ const uploadImages = async (req, res) => {
     // 2. Send both image URLs to the Python AI service for analysis
     let analysisResult;
     try {
-      const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/analyze`, {
-        selfieUrl,
-        bodyPhotoUrl,
-      });
+      const aiResponse = await axios.post(`${process.env.AI_SERVICE_URL}/analyze`, { selfieUrl, bodyPhotoUrl }, { headers: aiHeaders(), timeout: 120000 });
       analysisResult = aiResponse.data;
     } catch (aiError) {
       console.error('AI service error:', aiError.message);

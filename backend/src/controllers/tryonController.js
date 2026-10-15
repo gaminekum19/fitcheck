@@ -1,6 +1,7 @@
 const Profile = require('../models/Profile');
 const cloudinary = require('../config/cloudinary');
 const axios = require('axios');
+const { aiHeaders } = require('../config/aiHeaders');
 const { isSafeHttpsUrl } = require('../utils/safeUrl');
 
 // One preview at a time per user, so a double-click can't burn the free GPU quota.
@@ -38,7 +39,7 @@ const tryOn = async (req, res) => {
     const { data } = await axios.post(
       `${process.env.AI_SERVICE_URL}/tryon`,
       { personUrl: profile.bodyPhotoUrl, garmentUrl, description: String(description || 'garment').slice(0, 80) },
-      { timeout: 180000 }
+      { timeout: 180000, headers: aiHeaders() }
     );
     const imageUrl = await uploadToCloudinary(Buffer.from(data.imageBase64, 'base64'), 'fitcheck/tryon');
     res.status(200).json({ imageUrl });

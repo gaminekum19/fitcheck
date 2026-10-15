@@ -307,12 +307,13 @@ footer{position:relative;z-index:1;padding:26px clamp(20px,5vw,56px);border-top:
   FitCheck · Style suggestions only · Some links are affiliate links and may earn us a commission.
 </footer>
 
+<script src="config.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/lenis@1.1.13/dist/lenis.min.js"></script>
 <script>
 (function(){
 'use strict';
-const API = (window.FITCHECK_API_URL || 'https://fitcheck-sapw.onrender.com/api').replace(/\/$/, '');
+const API = window.FITCHECK_API || 'http://localhost:3001/api';
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hasGsap = () => !!window.gsap && !reduce;
 const $ = (id) => document.getElementById(id);
@@ -339,7 +340,7 @@ async function api(path, opts){
   if (state.token) headers.Authorization = 'Bearer ' + state.token;
   let res;
   try { res = await fetch(API + path, Object.assign({}, opts, { headers })); }
-  catch (e) { throw new Error('Cannot reach the FitCheck server. Is the backend running on port 3001?'); }
+  catch (e) { throw new Error('Cannot reach the FitCheck server. If it was idle, wait about a minute and try again.'); }
   let data = {};
   try { data = await res.json(); } catch (e) {}
   if (res.status === 401 && state.token) { logout(true); throw new Error('Your session expired. Please log in again.'); }
@@ -428,7 +429,7 @@ async function authCall(path, body){
 }
 $('btn-signup').addEventListener('click', () => {
   const body = { name: $('su-name').value.trim(), email: $('su-email').value.trim(), password: $('su-pass').value, gender: $('su-gender').value };
-  if (!body.name || !body.email || body.password.length < 6) return say($('auth-msg'), 'Enter your name, a valid email, and a password of at least 6 characters.', 'err');
+  if (!body.name || !body.email || body.password.length < 8) return say($('auth-msg'), 'Enter your name, a valid email, and a password of at least 8 characters.', 'err');
   authCall('/auth/signup', body);
 });
 $('btn-login').addEventListener('click', () => {
@@ -627,6 +628,8 @@ $('btn-add-item').addEventListener('click', async () => {
 });
 
 /* ---------- boot ---------- */
+// Wake a sleeping free-tier server in the background while the page loads.
+fetch(API.replace(/\/api$/, '') + '/health').catch(() => {});
 if (state.token) start(); else go('view-home');
 })();
 </script>

@@ -1,6 +1,9 @@
 import base64
+import hmac
+import os
 
-from fastapi import FastAPI, HTTPException
+from dotenv import load_dotenv
+from fastapi import Depends, FastAPI, Header, HTTPException
 from pydantic import BaseModel
 import requests
 import numpy as np
@@ -11,7 +14,15 @@ from body_shape import analyze_body_shape
 from color_name import name_dominant_color
 from tryon import run_tryon, TryOnError
 
+load_dotenv()
 app = FastAPI(title="FitCheck AI Service")
+
+
+def require_key(x_service_key: str = Header(default="")):
+    """If AI_SERVICE_KEY is set, only callers that know it (our backend) may use the service."""
+    expected = os.getenv("AI_SERVICE_KEY")
+    if expected and not hmac.compare_digest(x_service_key, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
 
 
 class AnalyzeRequest(BaseModel):
@@ -45,7 +56,7 @@ def root():
     return {"message": "FitCheck AI service is running!"}
 
 
-@app.post("/analyze")
+@app.post("/analyze", dependencies=[Depends(require_key)])
 def analyze(req: AnalyzeRequest):
     """Skin undertone/depth from the selfie, body shape from the full-body photo."""
     try:
@@ -68,7 +79,7 @@ def analyze(req: AnalyzeRequest):
         raise HTTPException(status_code=500, detail=f"Analysis failed: {str(e)}")
 
 
-@app.post("/dominant-color")
+@app.post("/dominant-color", dependencies=[Depends(require_key)])
 def dominant_color(req: ColorRequest):
     """Names the dominant colour of a garment photo (used by the closet)."""
     try:
@@ -79,7 +90,7 @@ def dominant_color(req: ColorRequest):
         raise HTTPException(status_code=500, detail=f"Colour detection failed: {str(e)}")
 
 
-@app.post("/tryon")
+@app.post("/tryon", dependencies=[Depends(require_key)])
 def tryon(req: TryOnRequest):
     """Generates a preview of the person wearing the garment (virtual try-on)."""
     try:

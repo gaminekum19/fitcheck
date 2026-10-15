@@ -1,16 +1,14 @@
 const User = require('../models/User');
 
-const requireAdmin = async (req, res, next) => {
+// Only the account whose email matches ADMIN_EMAIL passes. Use after the login check.
+module.exports = async (req, res, next) => {
   try {
-    const user = await User.findById(req.userId).select('role');
-    if (!user || user.role !== 'admin') {
-      return res.status(403).json({ message: 'Admin access required.' });
-    }
+    const admin = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
+    if (!admin) return res.status(403).json({ message: 'Admin access is not configured.' });
+    const user = await User.findById(req.userId).select('email');
+    if (!user || user.email !== admin) return res.status(403).json({ message: 'Admin only.' });
     next();
-  } catch (error) {
-    console.error('Admin authorization failed:', error.message);
-    res.status(500).json({ message: 'Unable to verify permissions.' });
+  } catch (e) {
+    res.status(500).json({ message: 'Could not verify admin access.' });
   }
 };
-
-module.exports = requireAdmin;

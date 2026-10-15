@@ -1,6 +1,7 @@
 const OwnedItem = require('../models/OwnedItem');
 const cloudinary = require('../config/cloudinary');
 const axios = require('axios');
+const { aiHeaders } = require('../config/aiHeaders');
 
 function uploadToCloudinary(fileBuffer, folder) {
   return new Promise((resolve, reject) => {
@@ -16,7 +17,7 @@ function uploadToCloudinary(fileBuffer, folder) {
 // Returns null if the service is down, so adding an item never fails because of it.
 async function detectColor(imageUrl) {
   try {
-    const { data } = await axios.post(`${process.env.AI_SERVICE_URL}/dominant-color`, { imageUrl }, { timeout: 15000 });
+    const { data } = await axios.post(`${process.env.AI_SERVICE_URL}/dominant-color`, { imageUrl }, { timeout: 30000, headers: aiHeaders() });
     return data.color || null;
   } catch (err) {
     console.error('Colour detection skipped:', err.message);
