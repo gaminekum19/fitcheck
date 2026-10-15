@@ -312,7 +312,7 @@ footer{position:relative;z-index:1;padding:26px clamp(20px,5vw,56px);border-top:
 <script>
 (function(){
 'use strict';
-const API = (window.FITCHECK_API_URL || 'http://localhost:3001/api').replace(/\/$/, '');
+const API = (window.FITCHECK_API_URL || 'https://fitcheck-sapw.onrender.com/api').replace(/\/$/, '');
 const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 const hasGsap = () => !!window.gsap && !reduce;
 const $ = (id) => document.getElementById(id);
