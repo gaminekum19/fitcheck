@@ -1,8 +1,10 @@
 const express = require('express');
 const router = express.Router();
+const protect = require('../middleware/authMiddleware');
+const requireAdmin = require('../middleware/adminMiddleware');
 const { getProducts, addProduct } = require('../controllers/productController');
 
 router.get('/', getProducts);
-router.post('/', addProduct); // in production, protect this with an admin-only check
+router.post('/', protect, requireAdmin, addProduct);
 
 module.exports = router;
